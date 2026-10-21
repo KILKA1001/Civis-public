@@ -1,0 +1,85 @@
+#pragma once
+void vp_city_growth_tests(){
+    using namespace civ5::runtime;using namespace civ5::saves;
+    constexpr auto vp=TechnologyProfile::vp542;constexpr auto layout=GameStateLayout::vp542_corpus;
+    RulesDatabase db;db.apply_sql("CREATE TABLE Defines(Name,Value);INSERT INTO Defines VALUES('UNHAPPY_THRESHOLD',50),('VERY_UNHAPPY_THRESHOLD',-10),('GLOBAL_GROWTH_PENALTY_PER_UNHAPPY',2.5),('LOCAL_HAPPINESS_FOOD_MODIFIER',2),('LOCAL_UNHAPPINESS_FOOD_MODIFIER',10),('VERY_UNHAPPY_GROWTH_PENALTY',-100),('UNHAPPY_GROWTH_PENALTY',-75),('PUPPET_GROWTH_MODIFIER',-20),('WLTKD_GROWTH_MULTIPLIER',25),('BALANCE_FOLLOWER_GROWTH_BONUS',3),('GROWTH_PENALTY_PER_UNIT_OVER_SUPPLY',5),('MAX_UNIT_SUPPLY_GROWTH_MOD',70);CREATE TABLE Beliefs(ID,Type,CityGrowthModifier,RequiresPeace);INSERT INTO Beliefs VALUES(0,'FIRST',7,1),(3,'LAST',11,0);");
+    const auto types=db.cache_info_types();auto defines=db.cache_global_defines(GlobalDefineProfile::vp542);auto rules=load_vp_city_growth_rules(db);
+    check(rules.beliefs.size()==2&&rules.beliefs.at(0).requires_peace&&rules.beliefs.at(3).modifier==11,"Growth rules preserve sparse belief identities and peace flag");
+    CustomModOptions options;options.entries["BALANCE_VP"].value=1;
+    ResearchContext setup;setup.profile=vp;setup.players[5].team=9;
+    PlayerResearchContext roster;roster.profile=vp;roster.civ_teams={9,10};roster.teams[9].alive_count=roster.teams[10].alive_count=1;roster.teams[10].members={6};roster.players[6].pregame_minor=true;
+    ScienceContext science;science.profile=vp;
+    auto &vp_science=ensure_vp_science_profile(science.players[5]);vp_science.cached_happiness_total=50;
+    CityYieldContext cities;cities.profile=vp;cities.yield_slots=1;auto &p=cities.players[5];p.capital=42;vp_player_state_religion(p)=1;p.second_pantheon_count=0;
+    auto &growth_profile=ensure_vp_city_growth_profile(cities);auto &player_growth=growth_profile.players[5];auto &city_growth=growth_profile.cities[{5,42}];
+    auto &city=p.cities[42];city.owner=5;city.id=42;vp_city_majority_religion(city)=-1;city.we_love_king_turns=0;
+    SavedMapProjection map{{2,1}};for(std::uint64_t i=0;i<2;++i){SavedMapCellProjection cell;cell.index=i;cell.x=i;cell.owner=5;map.cells.push_back(cell);}
+    PlotWaterRules wr;wr.profile=vp;PlotWaterState ws;ws.layout=layout;PlotPassability pass;pass.layout=layout;
+    PlotWaterContext water{map,ws,wr,types,pass,setup,cities,defines,&options};VpPlotReligionRules religion_rules;religion_rules.beliefs[0]={};religion_rules.beliefs[3]={};
+    VpPlotReligionContext religion{religion_rules,water};VpCityGrowthContext context{religion,roster,science,rules};
+    const auto query=[&](std::int64_t supply=0,std::int64_t assumed=0){return vp_city_growth_modifiers(context,city,supply,assumed);};
+    player_growth.city=2;player_growth.capital=3;player_growth.golden_age[0]=5;player_growth.trait_golden_age[0]=7;city_growth.golden_age[0]=11;
+    auto q=query();check(q.total==12&&q.golden_trait==7&&q.golden_city==0&&q.golden_player==0,"Trait golden-age food is unconditional; player and city effects are gated");
+    p.golden_age=true;check(query().total==28,"City and player golden-age bonuses follow the live flag");
+    p.capital=99;check(query().total==25,"Capital growth follows current city identity");p.capital=42;
+    check(query(3).supply==-15&&query(INT64_MAX).supply==-70,"Over-supply penalty uses fresh count and caps safely beyond int32");
+    city_growth.event=13;city_growth.tourism=17;city.puppet=true;city.we_love_king_turns=1;player_growth.boon=19;
+    q=query();check(q.event==13&&q.tourism==17&&q.puppet==-20&&q.celebration==44&&q.total==82,"Event, tourism, puppet and celebration growth apply independently");
+    city_growth.happiness_delta=3;check(query().happiness==6,"Positive local happiness uses its food rate");
+    vp_science.cached_happiness_total=49;check(query().happiness==-2,"Unhappy empire discards positive local bonus and truncates binary32 global penalty");
+    check(query(0,-5).happiness==-22,"Assumed local change precedes sign choice and global penalty");
+    vp_science.cached_happiness_total=50;check(query(0,-100).happiness==-100&&query(0,100).happiness==100,"Local happiness clamps independently before total");
+    vp_science.cached_happiness_total=-4294967300LL;check(query().happiness==-100,"Wide negative happiness saturates without native integer conversion overflow");
+    p.minor=true;check(query().excess_happiness==50&&query().happiness==6,"Minor status neutralizes empire happiness but retains local happiness");p.minor=false;
+    science.barbarian_players.insert(5);check(query().excess_happiness==50,"Barbarian domain neutralizes empire happiness without ID bounds");science.barbarian_players.clear();
+    cities.no_happiness=true;check(query().excess_happiness==50&&query().happiness==6,"No-happiness option still applies the source local modifier");cities.no_happiness=false;
+    options.entries["BALANCE_VP"].value=0;vp_science.cached_happiness_total=-10;
+    check(query(100).happiness==-100&&query(100).supply==0,"Community Patch mode uses inclusive very-unhappy threshold and excludes supply growth");
+    vp_science.cached_happiness_total=-9;check(query().happiness==-75,"Community Patch unhappy penalty preserves separate threshold");
+    vp_science.cached_happiness_total=0;check(query().happiness==0,"Community Patch ignores local happiness modifier");
+    options.entries["BALANCE_VP"].value=1;vp_science.cached_happiness_total=50;city_growth.happiness_delta=0;
+    CityYieldReligionBeliefs r;r.religion=1;r.founder=5;r.beliefs={0,0,3};ensure_vp_religion_beliefs(r,vp);vp_religion_beliefs(r).belief_religion=1;vp_religion_beliefs(r).holy_x=vp_religion_beliefs(r).holy_y=0;
+    cities.religions={r};vp_city_majority_religion(city)=1;city.religions={{1,4,100},{2,1,50},{1,999,99}};player_growth.population_boost_religion=true;
+    q=query();check(q.beliefs==25&&q.followers==12&&q.at_peace,"Growth sums duplicate beliefs and uses first matching follower record");
+    roster.teams[9].at_war.insert(10);q=query();check(!q.at_peace&&q.beliefs==11,"War with a living city-state disables peace-dependent beliefs");
+    roster.teams[10].alive_count=0;check(query().at_peace&&query().beliefs==25,"Dead teams do not break peace");
+    roster.teams[9].at_war.insert(63);roster.teams[63].alive_count=1;check(query().at_peace,"War outside the civilization-team domain does not break peace");
+    roster.teams[10].alive_count=1;religion_rules.beliefs[3].founder=true;map.cells[0].owner=6;check(query().beliefs==0,"Growth shares holy-plot ownership belief validation");map.cells[0].owner=5;
+    religion_rules.beliefs[3].civilization=7;options.entries["BALANCE_UNIQUE_BELIEFS_ONLY_FOR_CIV"].value=1;check(query().beliefs==0,"Unique civilization restrictions apply to majority growth");options.entries["BALANCE_UNIQUE_BELIEFS_ONLY_FOR_CIV"].value=0;
+    CityYieldReligionBeliefs second=r;second.religion=2;second.beliefs={0};vp_religion_beliefs(second).belief_religion=2;cities.religions.push_back(second);religion_rules.beliefs[0].pantheon=true;p.second_pantheon_count=1;
+    check(query().secondary==7,"Secondary pantheon raw growth bypasses peace and validity gates");
+    CityYieldReligionBeliefs pantheon=r;pantheon.religion=0;pantheon.beliefs={0};vp_religion_beliefs(pantheon).belief_religion=0;vp_religion_beliefs(pantheon).pantheon=true;vp_religion_beliefs(pantheon).holy_x=vp_religion_beliefs(pantheon).holy_y=-1;cities.religions.push_back(pantheon);
+    options.entries["BALANCE_PERMANENT_PANTHEONS"].value=1;
+    check(query().pantheon==0,"Secondary belief suppresses identical permanent pantheon belief");
+    // State religion appears first and GetBeliefInPantheon picks its first
+    // belief, even when different from the personal pantheon's first belief.
+    cities.religions[0].beliefs={3};check(query().pantheon==11,"Permanent pantheon growth uses the selected state-religion belief, not personal list front");
+    vp_religion_beliefs(cities.religions[0]).lookup[3]=vp_religion_beliefs(cities.religions[2]).lookup[3]=1;check(query().pantheon==0,"Shared lookup value one prevents permanent growth double counting");
+    vp_religion_beliefs(cities.religions[0]).lookup[3]=2;check(query().pantheon==11,"Non-one lookup preserves permanent pantheon bonus");
+    vp_city_majority_religion(city)=-1;check(query().pantheon==11&&query().secondary==0&&query().followers==0,"Permanent pantheon may apply without majority; secondary and follower growth cannot");
+    options.entries["BALANCE_PERMANENT_PANTHEONS"].value=0;constexpr std::int64_t wide=4294967300LL;
+    rules.food=wide;player_growth.trait_golden_age[wide]=wide;player_growth.city=wide;q=query();check(q.total>wide*2&&q.golden_trait==wide,"Growth IDs and totals remain wide");
+    player_growth.city=INT64_MAX;rejects([&]{query();});player_growth.city=0;rejects([&]{query(-1);});
+    auto detached=city;auto saved_growth=city_growth;rejects([&]{vp_city_growth_modifiers(context,detached,0);});growth_profile.cities.erase({5,42});rejects([&]{query();});growth_profile.cities[{5,42}]=saved_growth;
+
+    SavedSessionSnapshot snap;snap.all_players.emplace();snap.all_players->layout=layout;SavedPlayerObservation sp;sp.saved_player_id=wide;sp.core.layout=sp.traits.layout=sp.cities.layout=layout;
+    const auto core=[&](const char *name,std::vector<std::int64_t> v){PlayerCoreField f{name,PlayerCoreEncoding::i32};f.values=std::move(v);sp.core.fields.push_back(f);};
+    core("m_eID",{wide});core("m_iCityGrowthMod",{wide+1});core("m_iCapitalGrowthMod",{-2});core("m_aiGoldenAgeYieldMod",{7});
+    const auto trait=[&](const char *name,std::vector<std::int64_t> v){PlayerTraitsField f{name,PlayerTraitsEncoding::i32};f.values=std::move(v);sp.traits.fields.push_back(f);};
+    trait("m_iGrowthBoon",{8});trait("m_bPopulationBoostReligion",{1});trait("m_aiGoldenAgeYieldModifier",{wide,9,wide,99,0,0,0,1});
+    sp.cities.cities.emplace_back();auto &sc=sp.cities.cities[0];sc.core.layout=layout;sc.core.start_offset=wide;sc.core.end_offset=wide+100;
+    const auto field=[&](const char *name,std::int64_t n){CityCoreField f{name,CityCoreEncoding::i32};f.values={n};sc.core.fields.push_back(f);};
+    field("m_iID",wide+2);field("m_eOwner",wide);field("m_iHappinessDelta",-3);field("m_iGrowthEvent",4);field("m_iGrowthFromTourism",5);field("m_aiGoldenAgeYieldMod",6);
+    snap.all_players->players={sp};CityYieldContext restored;restored.profile=vp;restored.yield_slots=1;auto &rc=restored.players[wide].cities[wide+2];rc.id=wide+2;rc.owner=wide;rc.source_core={{wide,wide+100}};
+    restore_vp_city_growth(snap,restored);const auto *restored_profile=find_vp_city_growth_profile(restored);const auto &pg=restored_profile->players.at(wide);
+    check(pg.city==wide+1&&pg.capital==-2&&pg.boon==8&&pg.population_boost_religion&&pg.golden_age.at(0)==7&&pg.trait_golden_age==YieldValues{{0,0},{wide,9}},"Growth import binds wide player state and first-wins trait map including zero");
+    const auto &restored_city_growth=restored_profile->cities.at({wide,wide+2});
+    check(restored_city_growth.happiness_delta==-3&&restored_city_growth.event==4&&restored_city_growth.tourism==5&&restored_city_growth.golden_age.at(0)==6,"Growth import attaches city inputs to shared source-bound city");
+    auto broken=snap;broken.all_players->players[0].cities.cities[0].core.start_offset++;rejects([&]{restore_vp_city_growth(broken,restored);});
+    broken=snap;broken.all_players->players[0].traits.fields.back().values.pop_back();rejects([&]{restore_vp_city_growth(broken,restored);});
+    broken=snap;broken.all_players->players[0].core.fields.back().values.push_back(0);rejects([&]{restore_vp_city_growth(broken,restored);});
+    broken=snap;broken.all_players->players[0].core.fields.push_back(broken.all_players->players[0].core.fields[0]);rejects([&]{restore_vp_city_growth(broken,restored);});
+    auto copied=restored;ensure_vp_city_growth_profile(copied).players.at(wide).city=17;
+    check(find_vp_city_growth_profile(restored)->players.at(wide).city==wide+1,"VP city growth profile copies independently");
+    CityYieldContext vanilla;check(!find_vp_city_growth_profile(vanilla),"Vanilla runtime has no VP city growth state");rejects([&]{ensure_vp_city_growth_profile(vanilla);});
+}

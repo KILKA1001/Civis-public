@@ -1,0 +1,8 @@
+{
+  "ltable.c": {
+    "upstream_sha256": "3a853ce89bf5e834ec53f2a0dd2386eb8b84accbe5fdc18dabd7515b819f0f7c",
+    "patched_sha256": "7dc8d328aa9fe96ff12318ca1f0d8ef76f18be27d4e06a9bb5f32e83731b55c7",
+    "patch": "civis-ltable.patch",
+    "patch_sha256": "d38b419b9edc7db7a874f7159e69b62cda43d406dea8bb5dc2bf63d9386f4f53"
+  }
+}

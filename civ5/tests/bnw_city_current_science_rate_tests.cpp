@@ -1,0 +1,48 @@
+#include "civ5/runtime/bnw_city_current_science_rate.hpp"
+#include "civ5/runtime/bnw_city_registry.hpp"
+#include "civ5/runtime/bnw_area_registry.hpp"
+#include "civ5/runtime/file_identity.hpp"
+#include "civ5/ui/selected_bnw_preview_host.hpp"
+#include <climits>
+#include <algorithm>
+#include <optional>
+#include <string_view>
+#include <iostream>
+#include <thread>
+#include <type_traits>
+using namespace civ5;using namespace civ5::runtime;
+namespace {
+void need(bool b,const char* m){if(!b)throw std::runtime_error(m);}
+template<class F>void refuses(F&& f){bool rejected=false;try{f();}catch(const BnwCityCurrentScienceRateUnavailable&){rejected=true;}need(rejected,"SCIENCE current owner accepted stale/generic source");}
+template<class F>void math_refuses(F&& f){bool rejected=false;try{f();}catch(const CityYieldUnavailable&){rejected=true;}need(rejected,"SCIENCE native arithmetic overflow/frontier admitted");}
+const auto& named(const auto& rows,const char* name){using R=typename std::remove_cvref_t<decltype(rows)>::value_type;const R* out=nullptr;for(const auto& r:rows)if(r.name&&std::string_view(r.name)==name){need(!out,"Fixture duplicate source field");out=&r;}need(out,"Fixture source field absent");return *out;}
+std::int64_t scalar(const auto& fields,const char* name){const auto& f=named(fields,name);need(f.values.size()==1,"Fixture scalar unavailable");return f.values.front();}
+void pure(const content::GlobalDefineCache& actual_defines){
+ CityYieldContext s;s.profile=content::TechnologyProfile::bnw;s.yield_slots=6;s.no_happiness=true;auto& p=s.players[0];auto& c=p.cities[0];c.owner=0;c.id=0;c.population=2;auto& v=c.yields[3];CityYieldRules r;r.profile=content::TechnologyProfile::bnw;const auto calc=[&]{return detail::bnw_native_science_rate_math(s,r,actual_defines,0,0);};
+ v.terrain=1;v.per_population=50;need(calc()==200,"Native SCIENCE population units changed");v.per_religion=100;c.religions={{0,1,1},{1,1,1},{2,0,1}};need(calc()==300,"Follower count includes pantheon/zero followers");c.religions.clear();v.per_religion=0;v.per_population=0;v.terrain=INT32_MAX;v.buildings=1;v.misc=-1;math_refuses([&]{(void)calc();});v.buildings=0;v.misc=0;v.terrain=INT32_MAX/100+1;math_refuses([&]{(void)calc();});
+ v={};auto& production=c.yields[1];production.terrain=2;v.terrain=1;v.process_modifier=25;need(calc()==150,"SCIENCE process did not use native PRODUCTION rate");
+ production.terrain=INT32_MAX/100+1;math_refuses([&]{(void)calc();});production.terrain=2;v.process_modifier=INT32_MAX;math_refuses([&]{(void)calc();});production={};v.process_modifier=INT64_MAX;c.resistance=true;need(calc()==0,"Resistance read skipped process");c.resistance=false;c.razing=true;need(calc()==0,"Razing read skipped process");c.razing=false;v={};v.terrain=1;s.no_happiness=false;p.excess_happiness=INT32_MIN;math_refuses([&]{(void)calc();});s.no_happiness=true;need(calc()==100,"NO_HAPPINESS reached excess negation");s.no_happiness=false;p.excess_happiness=-1;need(calc()==100,"SCIENCE applied Gold/Production happiness penalty");
+ s.no_happiness=true;c.puppet=true;const auto* ps=actual_defines.find("PUPPET_SCIENCE_MODIFIER");const auto* pg=actual_defines.find("PUPPET_GOLD_MODIFIER");need(ps&&pg&&std::holds_alternative<std::int64_t>(ps->lookup.value)&&std::holds_alternative<std::int64_t>(pg->lookup.value),"Actual puppet Defines absent");const auto modifier=std::max<std::int64_t>(0,100+std::get<std::int64_t>(ps->lookup.value)+std::get<std::int64_t>(pg->lookup.value));need(calc()==modifier,"SCIENCE puppet fallthrough omitted Gold define");c.puppet=false;
+ saves::TradeRouteObservation route;route.origin_owner=route.destination_owner=0;route.origin_x=route.destination_x=0;route.origin_y=route.destination_y=0;route.origin_yields.assign(6,0);route.destination_yields.assign(6,0);route.origin_yields[3]=200;route.destination_yields[3]=300;s.trade_routes={route};need(calc()==600,"Source trade double city endpoint/order lost");s.trade_routes[0].origin_yields[3]=INT32_MAX;math_refuses([&]{(void)calc();});s.trade_routes.clear();
+ s.profile=content::TechnologyProfile::vp542;math_refuses([&]{(void)calc();});std::cout<<"PASS detached SCIENCE source-order/native prefix/suppression/puppet/trade tests; no issuer\n";
+}
+std::shared_ptr<ui::SelectedBnwPreviewHost> boot(const std::filesystem::path& save,const std::filesystem::path& game){auto b=ui::bootstrap_selected_bnw_preview(save,game,0,true);if(b.preview.blocker)throw std::runtime_error(b.preview.blocker->reason);std::shared_ptr<ui::SelectedBnwPreviewHost> h(std::move(b.preview.host));need(bool(h),"Actual Host absent");return h;}
+void run(const std::filesystem::path& save,const std::filesystem::path& game){
+ const auto before=identify_file(save).sha256;auto host=boot(save,game);pure(host->defines());const auto& s=host->session().state();std::size_t seen=0,positive=0,suppressed=0,process_observed=0;std::optional<BnwCityCurrentScienceRate> retained;std::int64_t first_owner=-1,first_city=-1;std::int32_t first_value=0;
+ for(const auto& p:s.world.all_players->players){for(const auto& raw:p.cities.cities){if(seen==24){break;}++seen;const auto owner=scalar(raw.core.fields,"m_eOwner"),id=scalar(raw.core.fields,"m_iID");need(owner>=0&&owner<64&&id>=0&&id<=INT32_MAX,"Actual canonical city outside native bounds");const bool suppress=scalar(raw.core.fields,"m_iResistanceTurns")>0||scalar(raw.core.fields,"m_iRazingTurns")>0;const auto process=named(raw.core.fields,"m_aiProductionToYieldModifier").values.at(3);
+  if(!suppress&&process!=0){++process_observed;} // real child is read by the owner, never fabricated/zeroed
+
+  auto full=inspect_bnw_city_current_science_rate(host,owner,id),index=inspect_bnw_city_current_science_rate(host,owner,id&8191);const auto value=full.value_times100();need(index.value_times100()==value,"Full/index SCIENCE differs");if(suppress){need(value==0,"Genuine suppression not0");++suppressed;}if(value>0){++positive;}
+  // A preserved wider read-model witness is only compared AFTER this genuine
+  // node has proved reached native prefixes. This copy never issues an owner.
+  auto math=s.cities;auto& mp=math.players.at(owner);auto& mc=mp.cities.at(id);const auto* cap=resolve_bnw_city_registry(s.world,s.cities,static_cast<std::int32_t>(owner),static_cast<std::int32_t>(mp.capital));mp.capital=cap?scalar(cap->core.fields,"m_iID"):-1;const auto* area=resolve_bnw_area_registry(s.world,static_cast<std::int32_t>(mc.area));mc.area=area?named(area->fields,"id").value:-1;const auto rules=load_city_yield_rules(host->database(),content::TechnologyProfile::bnw);need(city_yield_times100(math,rules,host->defines(),owner,id,3).total_times100==value,"Current SCIENCE and preserved wide witness differ");
+  std::cout<<"Genuine SCIENCE owner="<<owner<<" city="<<id<<" rateTimes100="<<value<<'\n';const auto stale=(id&~std::int64_t{8191})==8192?(id&8191)|16384:(id&8191)|8192;refuses([&]{(void)inspect_bnw_city_current_science_rate(host,owner,stale);});if(!retained){first_owner=owner;first_city=id;first_value=value;retained=std::move(full);}
+ }if(seen==24){break;}}
+ need(retained.has_value(),"No actual supported SCIENCE branch");std::cout<<"SCIENCE positives="<<positive<<(positive?" observed":" UNOBSERVED")<<" suppressed="<<suppressed<<(suppressed?" observed":" UNOBSERVED")<<" actual nonzero process="<<process_observed<<(process_observed?" observed":" UNOBSERVED")<<'\n';
+ bool read=false,bind=false;std::thread worker([&]{try{(void)retained->value_times100();}catch(const BnwCityCurrentScienceRateUnavailable&){read=true;}try{(void)inspect_bnw_city_current_science_rate(host,first_owner,first_city);}catch(const BnwCityCurrentScienceRateUnavailable&){bind=true;}});worker.join();need(read&&bind&&retained->value_times100()==first_value,"Foreign source access poisoned healthy owner");refuses([&]{(void)inspect_bnw_city_current_science_rate({},0,0);});refuses([&]{(void)inspect_bnw_city_current_science_rate(host,INT64_MAX,first_city);});refuses([&]{(void)inspect_bnw_city_current_science_rate(host,first_owner,INT64_MIN);});
+ const auto cp=host->session().checkpoint();host->session().restore(cp);refuses([&]{(void)retained->value_times100();});retained=inspect_bnw_city_current_science_rate(host,first_owner,first_city);need(retained->value_times100()==first_value,"Restore changed source SCIENCE");auto generic=LiveSession::from_restored_bnw(host->session().source(),host->session().state());auto moved=std::make_shared<LiveSession>(std::move(host->session()));refuses([&]{(void)retained->value_times100();});refuses([&]{(void)inspect_bnw_city_current_science_rate(host,first_owner,first_city);});host->session()=std::move(generic);refuses([&]{(void)inspect_bnw_city_current_science_rate(host,first_owner,first_city);});moved.reset();retained.reset();host.reset();
+ auto other=boot(save,game);auto strong=inspect_bnw_city_current_science_rate(other,first_owner,first_city);const auto weak=std::weak_ptr<ui::SelectedBnwPreviewHost>(other);other.reset();need(!weak.expired()&&strong.value_times100()==first_value,"SCIENCE lost sole actual parent");auto writer=weak.lock();need(bool(writer),"Retained Host absent");(void)writer->session().mutable_state();refuses([&]{(void)strong.value_times100();});need(identify_file(save).sha256==before,"Original save changed");std::cout<<"PASS genuine SCIENCE current read/lifetime/allocation source tests; no research credit/refresh/process effects\n";
+}
+}
+static_assert(!std::is_default_constructible_v<BnwCityCurrentScienceRate>);
+int main(int argc,char** argv){try{need(argc==3,"Expected selected BNW save and shared installation");run(argv[1],argv[2]);return 0;}catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CivisModSources schema="1">
+  <Mod id="d1b6328c-ff44-4b0d-aad7-c657f83610cd" version="151" name="Community Patch">
+    <Installer bundle="vp-5.4.2" sha256="33251bc5a0c5b1a2b99118c3dc844c994c7b2462b9fb5241efdbddda68085e71"/>
+  </Mod>
+  <Mod id="8411a7a8-dad3-4622-a18e-fcc18324c799" version="17" name="Vox Populi">
+    <Installer bundle="vp-5.4.2" sha256="33251bc5a0c5b1a2b99118c3dc844c994c7b2462b9fb5241efdbddda68085e71"/>
+  </Mod>
+  <Mod id="8e54eb87-31e8-4fcd-aafe-ede055b463d0" version="11" name="(overhaul) Even More Resources for Vox Populi">
+    <Archive url="https://forums.civfanatics.com/attachments/overhaul-even-more-resources-for-vox-populi-v-11-zip.672769/" sha256="3e5743e498cd481b9603b5ae05c1d5e4793a4dda2cca5689dd63118a2c968abf" manifest_md5="archive"/>
+  </Mod>
+  <Mod id="3e151552-1683-4881-b736-8ee89226f599" version="24" name="(overhaul) More Wonders for VP">
+    <Archive url="https://www.dropbox.com/scl/fo/bl3e4c895gw9e6x92yske/AG7jY7TRrgb0hkLoXyiEseY?rlkey=n1mi4oahfg6k0n2180msp1504&amp;dl=1" member="(overhaul) More Wonders for VP (v24.11).7z" sha256="e915faaf1e5dd9ee597dbc8ef1879d63ecfaf42262b149c60276e7dc1a157771"/>
+  </Mod>
+  <Mod id="b2eb6d1e-1fcb-4a0d-829c-51691aa3183a" version="19" name="(overhaul) Unique City States for VP">
+    <Archive url="https://github.com/user-attachments/files/30391547/additional.mods.2026.07.26.zip" root="(overhaul) Unique City States for VP (v19.3)/(overhaul) Unique City States for VP" sha256="5ca13b6995c9f2286f69d482c4026f26e2e039343e29eb007076d1fd4eb68c17"/>
+  </Mod>
+  <Mod id="9c922650-8174-4495-903e-9ed9d01e67cf" version="10" name="(4UC) 4th Unique Component">
+    <Workshop id="415349082" sha256="1eb8d9d01b5cdd2fed2ea5a0166261982db3c6028208876ebfaf7782e9451506"/>
+  </Mod>
+  <Mod id="9db218ee-7efa-4b4c-c234-014666n8l33t" version="6" name="(n) Semper Fidelis">
+    <Archive url="https://www.dropbox.com/scl/fo/aejd7iqeibhqvi5rrc4cb/AGwoCdM0lBjTjLOKvyoCQ-A?rlkey=99kz643bx6eh3dzgiu2ze8ogy&amp;dl=1" sha256="5abc1a707da3f54725d63240e25783eb5e93e22cc5805b88f95c38e049734f6f" manifest_md5="archive" manifest_assets="archive"/>
+  </Mod>
+  <Mod id="09f11249-de39-4884-975d-9d8f01c241d7" version="5" name="Barbarians Evolved">
+    <Workshop id="485249197" sha256="2e1bbade9c5b24ddf89cf713b4d3586a501e83aff47cf4d1cae80055568e3b56"/>
+  </Mod>
+  <Mod id="e53b3cb8-48a9-4f46-8e1d-c9d3e8fa2233" version="2" name="Pontoon Bridges for VP">
+    <Workshop id="1683571508" sha256="ad6c0080bc83d422d2ad2f99becff3fd1a93b7c2b3755f6786ac1a0c2806fd77"/>
+  </Mod>
+  <Mod id="fa9b6aea-e036-4760-b6e7-33de432fe890" version="1" name="Orangechrisy's Dutch Wonder Pack">
+    <Workshop id="3480633979" sha256="46f1d6c73d222b3a402102f6dbd18246972b282ccc073c3588cf0e87691761a5"/>
+  </Mod>
+</CivisModSources>

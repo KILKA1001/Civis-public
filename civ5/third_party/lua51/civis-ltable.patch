@@ -1,0 +1,44 @@
+--- upstream/ltable.c
++++ civis/ltable.c
+@@ -121,9 +121,13 @@
+   if (ttisnumber(key)) {
+     lua_Number n = nvalue(key);
+     int k;
+-    lua_number2int(k, n);
+-    if (luai_numeq(cast_num(k), n))
+-      return k;
++    /* Civis: sparse wide numeric keys belong in the hash part. Check the
++       array range before conversion (NaN/infinity also fail this test). */
++    if (n >= 1 && n <= MAXASIZE) {
++      lua_number2int(k, n);
++      if (luai_numeq(cast_num(k), n))
++        return k;
++    }
+   }
+   return -1;  /* `key' did not match some condition */
+ }
+@@ -434,7 +438,7 @@
+ */
+ const TValue *luaH_getnum (Table *t, int key) {
+   /* (1 <= key && key <= t->sizearray) */
+-  if (cast(unsigned int, key-1) < cast(unsigned int, t->sizearray))
++  if (cast(unsigned int, key)-1u < cast(unsigned int, t->sizearray))
+     return &t->array[key-1];
+   else {
+     lua_Number nk = cast_num(key);
+@@ -473,9 +477,12 @@
+     case LUA_TNUMBER: {
+       int k;
+       lua_Number n = nvalue(key);
+-      lua_number2int(k, n);
+-      if (luai_numeq(cast_num(k), nvalue(key))) /* index is int? */
+-        return luaH_getnum(t, k);  /* use specialized version */
++      /* Civis: do not truncate or overflow a wide numeric key. */
++      if (n >= INT_MIN && n <= INT_MAX) {
++        lua_number2int(k, n);
++        if (luai_numeq(cast_num(k), n)) /* index is int? */
++          return luaH_getnum(t, k);  /* use specialized version */
++      }
+       /* else go through */
+     }
+     default: {

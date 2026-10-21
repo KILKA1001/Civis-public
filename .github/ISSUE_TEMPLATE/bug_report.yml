@@ -1,0 +1,28 @@
+name: Bug report
+description: Report a reproducible problem in Civis
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Commit and build configuration
+      placeholder: Commit hash, compiler and Release/Debug configuration
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the target or executable and relevant options.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and diagnostics
+      description: OS, graphics driver where relevant, and applicable log excerpts.

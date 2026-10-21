@@ -1,0 +1,44 @@
+#pragma once
+void vp_city_religion_minor_yield_tests(){
+    using namespace civ5::runtime;using namespace civ5::saves;constexpr auto vp=TechnologyProfile::vp542;
+    RulesDatabase db;db.apply_sql("CREATE TABLE Defines(Name,Value);INSERT INTO Defines VALUES('CITY_STATE_SCALE_PER_CITY_MOD',-7);");
+    const auto types=db.cache_info_types();const auto defines=db.cache_global_defines(GlobalDefineProfile::vp542);CustomModOptions options;options.entries["BALANCE_VP"].value=1;
+    ResearchContext players;players.profile=vp;players.players[5]={};CityYieldContext cities;cities.profile=vp;auto &p=cities.players[5];vp_player_state_religion(p)=2;auto &religion_profile=ensure_vp_city_religion_minor_yield_profile(cities);religion_profile.players[5]={};
+    auto &city=p.cities[42];city.owner=5;city.id=42;vp_city_majority_religion(city)=2;auto &a=religion_profile.cities[{5,42}];
+    SavedMapProjection map{{2,1}};map.cells.resize(2);map.cells[0].is_city=true;map.cells[0].plot_city=SavedPlotCityReference{5,42};map.cells[1].is_city=false;
+    PlotPassability pass;PlotWaterRules wr;wr.profile=vp;PlotWaterState ws;ws.layout=GameStateLayout::vp542_corpus;PlotWaterContext water{map,ws,wr,types,pass,players,cities,defines,&options};
+    VpPlotReligionRules rr;rr.yields={0,1};VpPlotReligionContext religion{rr,water};TreasuryContext treasury;treasury.profile=vp;auto &t=treasury.players[5];auto &tr=ensure_vp_treasury_religion_profile(t);tr.state_religion=2;tr.owns_state_religion=true;VpCityReligionMinorContext c{religion,treasury};
+    const auto rel=[&]{return vp_city_religion_yield(c,city,0);};const auto minor=[&]{return vp_city_minor_yield(c,city,0);};
+    city.yields[0].religion=7;a.terrain_religion[0]={{3,11},{3,13}};a.feature_religion[0]={{2,-17},{2,5}};a.special_religion[0]=19;religion_profile.players[5].own_pantheon[0]=2;
+    auto q=rel();check(q.base==700&&q.terrain==24&&q.features==-12&&q.own_pantheon==200&&q.special==19&&q.total_times100==931,"Religion base sums ordered duplicate rows, shared owned religion bonus and saved special hundredths");
+    check(vp_owned_religion(c,5)==2,"VP ownership uses saved ownership flag and state religion, independent of founder");
+    tr.owns_state_religion=false;check(rel().own_pantheon==0,"Absent ownership and founding religion suppress own-pantheon trait");
+    CityYieldReligionBeliefs r;r.religion=3;r.founder=5;ensure_vp_religion_beliefs(r,vp);vp_religion_beliefs(r).holy_x=vp_religion_beliefs(r).holy_y=0;vp_religion_beliefs(r).belief_religion=3;cities.religions={r};vp_city_majority_religion(city)=3;
+    check(vp_created_religion(water,5)==3&&rel().own_pantheon==200,"Fallback finds a founded religion through a live owned holy city");
+    map.cells[0].plot_city=SavedPlotCityReference{6,77};cities.players[6].cities[77].owner=6;check(vp_created_religion(water,5)==-1&&rel().own_pantheon==0,"Losing the holy city invalidates the founded religion query");
+    auto pantheon=r;pantheon.religion=0;vp_religion_beliefs(pantheon).pantheon=true;vp_religion_beliefs(pantheon).holy_x=vp_religion_beliefs(pantheon).holy_y=-1;cities.religions.push_back(pantheon);vp_city_majority_religion(city)=0;
+    check(vp_created_religion(water,5)==-1&&vp_created_religion(water,5,true)==0&&rel().own_pantheon==200,"Created religion can include a surviving personal pantheon only when requested");
+    vp_city_majority_religion(city)=-1;check(rel().own_pantheon==0,"NO_RELIGION majority cannot receive own-pantheon yield");
+    tr.owns_state_religion=true;vp_city_majority_religion(city)=0;check(rel().own_pantheon==200,"Owned major religion still permits a city following the personal pantheon");
+    vp_player_state_religion(p)=tr.state_religion=0;check(vp_owned_religion(c,5)==-1,"VP owned state religion excludes pantheon even when ownership flag is true");vp_player_state_religion(p)=tr.state_religion=2;
+    options.entries["BALANCE_VP"].value=0;check(vp_owned_religion(c,5)==-1,"CP cannot own a conquered religion based solely on saved state-religion ownership");
+    map.cells[0].plot_city=SavedPlotCityReference{5,42};check(vp_owned_religion(c,5)==3,"CP ownership follows live owned holy city of a founded major religion");
+    options.entries["BALANCE_VP"].value=1;
+    cities.religions.push_back(pantheon);cities.religions[1].religion=8;vp_city_majority_religion(city)=8;
+    check(vp_created_pantheon(cities,5)==8&&rel().own_pantheon==200,"Personal pantheon selects first flagged record rather than hard-coded religion zero");
+    religion_profile.players[5].own_pantheon[0]=-2;check(rel().own_pantheon==0,"Negative own-pantheon trait is excluded");religion_profile.players[5].own_pantheon.clear();
+    a.special_religion[0]=-900;check(rel().total_times100==-188,"Negative complete religion income is not clamped");
+    auto &tm=ensure_vp_treasury_minor_profile(t);tm.trait_cs_modifier=11;tm.cs_modifier=14;a.alliance[0]=103;a.friendship[0]=-103;a.per_ally[0]=7;a.per_friend[0]=-11;a.from_minors[0]=3;religion_profile.players[5].allies=2;religion_profile.players[5].friends=3;
+    auto m=minor();check(m.modifier==25&&m.city_scaling==0&&m.alliance_base==128&&m.friendship_base==-128&&m.per_ally==14&&m.per_friend==-33&&m.from_minors==300&&m.total_times100==281,"CS friendship and alliance each round separately; raw cached counts scale their own bonuses");
+    tm.friends={1,2,3,4,5};t.ally=5;check(minor().total_times100==281,"Diplomacy friend lists and minor ally identity do not replace saved empire totals");
+    options.entries["BALANCE_CITY_STATE_SCALE"].value=1;p.cities[43]={};p.cities[44]={};m=minor();check(m.city_scaling==-14&&m.modifier==11&&m.alliance_base==114&&m.friendship_base==-114,"City-count scaling includes all current cities and keeps signed per-city define");
+    a.friendship[0]=103;check(minor().alliance_base+minor().friendship_base==228,"Alliance and friendship divide separately before being added");
+    tm.cs_modifier=-220;check(minor().alliance_base==-126,"CS modifier below minus one hundred reverses sign without clamping");
+    p.cities.erase(43);p.cities.erase(44);check(minor().city_scaling==0,"Single city adds no city-count scaling");
+    constexpr std::int64_t big=4294967300LL;religion_profile.players[5].allies=big;a.per_ally[0]=100;check(minor().per_ally==big*100,"CS totals and arithmetic exceed uint32");
+    religion_profile.players[5].allies=INT64_MAX;rejects([&]{minor();});religion_profile.players[5].allies=0;
+    city.yields[0].religion=INT64_MAX;rejects([&]{rel();});city.yields[0].religion=0;
+    auto detached=city;rejects([&]{vp_city_religion_yield(c,detached,0);});rejects([&]{vp_city_minor_yield(c,city,99);});
+    tr.state_religion=77;rejects([&]{rel();});tr.state_religion=*vp_player_state_religion(p);
+    religion_profile.cities.erase({5,42});rejects([&]{minor();});
+}

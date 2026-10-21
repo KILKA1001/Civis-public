@@ -1,0 +1,88 @@
+{
+  "schema": "civis-native-extended-glyph-geometry-source-v1",
+  "exeSha256": "7c9f93d512c49a7ab2bc70f51c6caa10a82ddd697ac11d8a24ff1bb7ce7c3686",
+  "slices": [
+    {
+      "name": "base_corners",
+      "start": "0x5916fd",
+      "endExclusive": "0x591817",
+      "bytes": 282,
+      "rawOffset": 1641213,
+      "sha256": "ee8186eea6bef92404c2b00dd2457af6854cde71454a0b508fd2bcae1f94c19a",
+      "instructions": 53
+    },
+    {
+      "name": "layer_offsets",
+      "start": "0x591849",
+      "endExclusive": "0x59192f",
+      "bytes": 230,
+      "rawOffset": 1641545,
+      "sha256": "29cddbf4090bd51662f93caf7c54658ffe12fa970ce5d6ff669e7bc854ac6336",
+      "instructions": 33
+    },
+    {
+      "name": "store_tl",
+      "start": "0x59197a",
+      "endExclusive": "0x5919b0",
+      "bytes": 54,
+      "rawOffset": 1641850,
+      "sha256": "9fbe4fb8f7f771862a2613a485e60be8a4ebbb72e94324ac7f6fadd2fa1142f6",
+      "instructions": 9
+    },
+    {
+      "name": "store_tr",
+      "start": "0x5919e7",
+      "endExclusive": "0x591a26",
+      "bytes": 63,
+      "rawOffset": 1641959,
+      "sha256": "b1855fa1a4881723e90b280e1940e54f39f228b308c628c2a6133d100572831d",
+      "instructions": 10
+    },
+    {
+      "name": "store_br",
+      "start": "0x591a54",
+      "endExclusive": "0x591a9c",
+      "bytes": 72,
+      "rawOffset": 1642068,
+      "sha256": "f8b69f8b52771d087b1090878e732e4ba523e6bf664ed67b8df344808befb8ff",
+      "instructions": 11
+    },
+    {
+      "name": "store_bl",
+      "start": "0x591aca",
+      "endExclusive": "0x591b12",
+      "bytes": 72,
+      "rawOffset": 1642186,
+      "sha256": "435dc49d954fd734788b3f4c7c8b02d1f3c087e09b7278967b5b780460dbf329",
+      "instructions": 11
+    }
+  ],
+  "constants": [
+    {
+      "name": "unsigned_two32",
+      "address": "0x9dd390",
+      "rawOffset": 6144912,
+      "bits": 1333788672
+    },
+    {
+      "name": "shadow_one",
+      "address": "0x9d144c",
+      "rawOffset": 6095948,
+      "bits": 1065353216
+    }
+  ],
+  "descriptorOrigin": "returned descriptor = raw cache slot +8",
+  "returnedDescriptorAdvanceOffset": 32,
+  "rawSlotAdvanceOffset": 40,
+  "vertexOrder": [
+    "TL",
+    "TR",
+    "BR",
+    "BL"
+  ],
+  "nativeLabelReady": false,
+  "authoredBranchIncluded": false,
+  "originalOwnerObserved": false,
+  "incomingProductionCwObserved": false,
+  "wrapper": "Own scratch for nonconsumed Label+170 read and capacity globals, only numeric slices execute. No calls, vector publication, buffer allocation, TextUpdate, parent dispatch or native Label admission."
+}

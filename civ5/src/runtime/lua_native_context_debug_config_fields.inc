@@ -1,0 +1,16 @@
+bool profile_debug_attempted=false;
+int profile_include_ref=LUA_NOREF,profile_traceback_ref=LUA_NOREF;
+const void* profile_include_pointer=nullptr;const void* profile_traceback_pointer=nullptr;
+const Proto* profile_include_proto=nullptr;const UpVal* profile_include_list_upvalue=nullptr;
+std::shared_ptr<const NativeContextIncludeChildControl> profile_include_child_control;
+bool profile_libraries_attempted=false,profile_libraries_copied=false;
+std::array<int,5> profile_library_ref={LUA_NOREF,LUA_NOREF,LUA_NOREF,LUA_NOREF,LUA_NOREF};
+int profile_debug_ref=LUA_NOREF;
+std::weak_ptr<const ui::detail::NotificationContextLuaDebugConfigPrefix> profile_debug_prefix;
+std::weak_ptr<const ui::detail::NotificationContextLuaProfileReturn> profile_completed_return;
+int profile_restart_keys_ref=LUA_NOREF;const void* profile_restart_keys_pointer=nullptr;
+std::weak_ptr<const ui::detail::NotificationContextLuaControlsTableReturn> controls_table_return;
+std::weak_ptr<const ui::detail::NotificationContextLuaLoadSetupReturn> load_setup_completed_return;
+std::weak_ptr<const ui::detail::NotificationContextLuaControlsNamedReference> controls_named_entered_return;
+int controls_table_ref=LUA_NOREF;const void* controls_table_pointer=nullptr;
+int lua_events_reference=LUA_NOREF;const void* lua_events_pointer=nullptr;

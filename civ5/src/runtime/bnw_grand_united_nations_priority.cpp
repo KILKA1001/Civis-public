@@ -1,0 +1,36 @@
+#include "civ5/runtime/bnw_grand_united_nations_priority.hpp"
+#include "civ5/runtime/file_identity.hpp"
+#include <climits>
+#include <type_traits>
+namespace civ5::runtime {
+namespace {
+constexpr auto bnw=saves::GameStateLayout::expansion2_version1;
+void need(bool v,const char *why){if(!v)throw std::runtime_error(why);}
+std::int32_t integer(std::int64_t v){need(v>=INT32_MIN&&v<=INT32_MAX,"BNW UN priority native int width/overflow");return static_cast<std::int32_t>(v);}
+std::int32_t add(std::int32_t a,std::int32_t b){return integer(static_cast<std::int64_t>(a)+b);}
+std::int32_t mul(std::int32_t a,std::int32_t b){return integer(static_cast<std::int64_t>(a)*b);}
+auto &named(const auto &rows,std::string_view key){using Row=typename std::remove_cvref_t<decltype(rows)>::value_type;const Row *p=nullptr;for(const auto &r:rows)if(r.name&&std::string_view(r.name)==key){need(!p,"BNW UN priority duplicate native field");p=&r;}need(p,"BNW UN priority mandatory native field missing");return *p;}
+std::int32_t define(const BnwHappinessSuffixRules &r,const char *key){const auto *v=r.defines().find(key);need(v&&v->lookup.found&&!v->retained_previous&&v->lookup.error.empty()&&std::holds_alternative<std::int64_t>(v->lookup.value),"BNW UN priority native Define unavailable");return integer(std::get<std::int64_t>(v->lookup.value));}
+bool victory(const LiveSessionState &s,std::int64_t p){need(s.world.pregame&&s.world.pregame->layout==bnw,"BNW UN priority native CvPreGame owner missing");const auto &a=s.world.pregame->archive;const auto n=a.integers.find("num_victory_infos");const auto v=a.flag_arrays.find("victories");need(n!=a.integers.end()&&n->second>=0&&n->second<=INT32_MAX&&v!=a.flag_arrays.end()&&v->second.size()==static_cast<std::size_t>(n->second)&&p>=0,"BNW UN priority native victory inventory malformed");return p<n->second?v->second.at(p):false;}
+const auto &team(const LiveSessionState &s,std::int64_t p){need(s.world.teams&&s.world.teams->layout==bnw&&s.world.teams->teams.size()==64&&s.world.teams->dimensions.teams==64,"BNW UN priority native team inventory unknown");const auto &mapping=s.world.pregame->archive.integer_arrays.at("team_types");need(mapping.size()==64&&mapping.at(p)>=0&&mapping.at(p)<64&&s.setup.players.at(p).team==mapping.at(p),"BNW UN priority current player/team mirror stale");const auto &t=s.world.teams->teams.at(mapping.at(p));need(t.index==static_cast<std::uint64_t>(mapping.at(p))&&named(t.fields,"id").value==mapping.at(p),"BNW UN priority native team ID malformed");return t;}
+std::int32_t trait(const saves::SavedPlayerObservation &p,const char *key){need(p.traits.layout==bnw&&p.traits.version&&*p.traits.version>=1&&*p.traits.version<=19&&p.traits.start_offset<p.traits.end_offset,"BNW UN priority actual native trait Read unavailable");const auto &f=named(p.traits.fields,key);need(f.encoding==saves::PlayerTraitsEncoding::i32&&f.columns==1&&f.values.size()==1,"BNW UN priority native trait scalar shape malformed");return integer(f.values[0]);}
+}
+BnwGrandUnitedNationsPriorityQuote quote_bnw_grand_united_nations_priority(const LiveSessionState &s,const BnwHappinessSuffixRules &r,const content::RulesDatabase &db,const SessionCheckpointIdentity &id,std::int64_t p){BnwGrandUnitedNationsPriorityQuote q;q.player=p;try{
+ need(id.payload_sha256.size()==64&&id.rules_sha256==r.identity()&&identify_bytes(db.gameplay_fingerprint_data()).sha256==id.rules_sha256&&s.setup.profile==content::TechnologyProfile::bnw&&p>=0&&p<22,"BNW UN priority actual source/rules/profile identity differs");
+ const auto *v=r.types().find("VICTORY_DIPLOMATIC");if(!v||v->table!="Victories"||!victory(s,v->id)){q.victory_disabled=true;q.category=-100;q.calculated=true;return q;}
+ need(s.world.all_players&&s.world.all_players->layout==bnw&&s.world.all_players->players.size()==64,"BNW UN priority native roster missing");const auto &raw=s.world.all_players->players.at(p);const auto &player_id=named(raw.core.fields,"m_eID");need(raw.index==static_cast<std::uint64_t>(p)&&raw.saved_player_id==p&&raw.core.layout==bnw&&player_id.encoding==saves::PlayerCoreEncoding::i32&&player_id.values.size()==1&&player_id.values[0]==p,"BNW UN priority native player identity malformed");
+ const auto &t=team(s,p);q.minor_attacks=integer(named(t.fields,"minor_civs_attacked").value);q.attack_weight=define(r,"AI_GRAND_STRATEGY_UN_EACH_MINOR_ATTACKED_WEIGHT");q.attack_term=mul(*q.minor_attacks,*q.attack_weight);auto priority=*q.attack_term;
+ need(s.world.game_state.layout==bnw&&std::holds_alternative<saves::Expansion2PrefixObservation>(s.world.game_state.prefix),"BNW UN priority native CvGame prefix unavailable");const auto &game=std::get<saves::Expansion2PrefixObservation>(s.world.game_state.prefix);need(game.version==1,"BNW UN priority native CvGame prefix version unknown");q.votes_needed=integer(game.scalars.at(27));
+ const auto &leagues=s.world.leagues;need(leagues.layout==bnw&&leagues.version&&*leagues.version>=1&&*leagues.version<=5&&leagues.start_offset<leagues.end_offset,"BNW UN priority native GameLeagues Read unavailable");q.active_leagues=integer(leagues.leagues.size());q.league_prefix=priority;
+ if(*q.active_leagues>0){q.starting_votes_pending=true;q.blocker="BNW UN priority source active league requires actual CalculateStartingVotesForMember(own) numerical/mutable vote_sources owner before foreign63 loop; cached saved member.votes is not that result";return q;}
+ q.no_active_leagues=true;need(s.cities.leagues.empty(),"BNW UN priority native/owned empty league inventory stale");const auto &personality=checked_bnw_personality_flavors(raw,raw,db);const auto *f=r.types().find("FLAVOR_DIPLOMACY");need(f&&f->table=="Flavors"&&f->id>=0&&f->id<static_cast<std::int64_t>(personality.size()),"BNW UN priority actual diplomacy flavor Info missing");q.diplomacy_flavor=integer(personality.at(f->id));q.era=integer(named(t.fields,"era").value);bool known=false;for(const auto &[key,type]:r.types().entries()){(void)key;if(type.table=="Eras"&&type.id==*q.era)known=true;}need(known&&s.maintenance.team_eras.at(t.index)==*q.era,"BNW UN priority current era Info/owned mirror stale");q.flavor_term=mul(mul(integer(10LL-*q.era),*q.diplomacy_flavor),150)/100;priority=add(priority,*q.flavor_term);
+ // These zeros are source-created locals on the validated no-active branch.
+ // They never replace unknown member/ally/vote input on the active branch.
+ q.votes_controlled=0;q.votes_delta=0;q.unallied_city_states=0;
+ if(*q.votes_controlled>=*q.votes_needed){q.category=1000;q.calculated=true;return q;}
+ q.close_weight=0;if(*q.votes_controlled>=mul(*q.votes_needed,3)/4){q.close_weight=40;priority=add(priority,40);}q.comparison_weight=0;
+ // No-active source locals give delta=potential=0: none of the source >0/<0
+ // branches executes. Native traits are read only after the win short circuit.
+ q.friendship=trait(raw,"m_iCityStateFriendshipModifier");priority=add(priority,*q.friendship);q.bonus=trait(raw,"m_iCityStateBonusModifier");priority=add(priority,*q.bonus);q.combat=trait(raw,"m_iCityStateCombatModifier");priority=integer(static_cast<std::int64_t>(priority)-*q.combat);q.category=priority;q.calculated=true;
+ }catch(const std::exception &e){q.calculated=false;q.category.reset();q.blocker=e.what();}return q;}
+}

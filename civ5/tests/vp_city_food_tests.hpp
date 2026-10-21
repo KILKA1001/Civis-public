@@ -1,0 +1,66 @@
+#pragma once
+void vp_city_food_tests(){
+    using namespace civ5::runtime;using namespace civ5::saves;
+    constexpr auto vp=TechnologyProfile::vp542;constexpr auto layout=GameStateLayout::vp542_corpus;
+    RulesDatabase db;db.apply_sql("CREATE TABLE Defines(Name,Value);INSERT INTO Defines VALUES('DEFAULT_SPECIALIST',0),('FOOD_CONSUMPTION_PER_POPULATION',2);CREATE TABLE Eras(ID,Type,SpecialistExtraFoodCost);INSERT INTO Eras VALUES(0,'EARLY',0),(2,'MID',3),(4,'LATE',-1);CREATE TABLE Units(ID,Type,Food,MilitaryProduction);INSERT INTO Units VALUES(0,'SETTLER',1,0),(2,'WARRIOR',0,1),(3,'WORKER',0,0);CREATE TABLE Specialists(ID,Type);INSERT INTO Specialists VALUES(0,'DEFAULT'),(1,'SCIENTIST'),(2,'ENGINEER');CREATE TABLE UnitPromotions(ID,Type);INSERT INTO UnitPromotions VALUES(0,'PROMOTION'),(4,'LAST');");
+    const auto defines=db.cache_global_defines(GlobalDefineProfile::vp542);auto rules=load_vp_city_food_rules(db);
+    check(rules.specialist_slots==3&&rules.promotion_slots==5&&rules.units.at(0).food&&rules.specialist_extra_by_era.at(4)==-1,"City food rules retain sparse Info IDs and era fallback sentinel");
+    CityYieldContext world;world.profile=vp;auto &player=world.players[5];player.capital=42;
+    auto &food_profile=ensure_vp_city_food_profile(world);auto &player_food=food_profile.players[5];auto &city_food=food_profile.cities[{5,42}];
+    auto &city=player.cities[42];city.owner=5;city.id=42;city.population=10;city_food.specialists={{0,100},{1,2},{2,1}};city.production_orders.emplace();
+    ResearchContext setup;setup.profile=vp;setup.players[5].team=9;std::map<std::int64_t,std::int64_t> eras{{9,4}};VpCityFoodContext context{world,setup,eras,rules,defines};
+    auto rates=vp_city_food_rates(context,city);
+    check(rates.specialists==3&&rates.non_specialists==7&&rates.era_extra==3&&rates.per_non_specialist_times100==200&&rates.per_specialist_times100==500,"Specialists exclude default workers; missing and negative eras fall back to previous rule");
+    player_food.half_specialist_count=1;player_food.half_specialist_capital_count=1;
+    check(vp_city_food_rates(context,city).per_specialist_times100==125,"Both specialist discounts apply successively to the capital");
+    player.capital=99;check(vp_city_food_rates(context,city).per_specialist_times100==250,"Capital-only discount follows live capital identity");player.capital=42;
+    player_food.specialist_change=-99;check(vp_city_food_rates(context,city).per_specialist_times100==100,"Specialist food has a one-food floor after all discounts");player_food.specialist_change=0;
+    city_food.additional=1;player_food.non_specialist_change_times100=-51;
+    check(vp_city_food_rates(context,city).per_non_specialist_times100==249,"Trait non-specialist adjustment is already in hundredths");
+    player_food.non_specialist_change_times100=-999;check(vp_city_food_rates(context,city).per_non_specialist_times100==0,"Non-specialist food clamps at zero");
+    player_food.non_specialist_change_times100=0;city_food.additional=0;
+    auto q=vp_city_food_consumption(context,city,1000);check(q.total_times100==1775,"Full consumption components retain specialist fractions");
+    city_food.no_starvation_non_specialist=1;q=vp_city_food_consumption(context,city,1000);
+    check(q.total_times100==1375&&q.protected_non_specialists,"No-starvation rule reduces only non-specialist consumption");
+    check(vp_city_food_consumption(context,city,1000,true).total_times100==1775,"Explicit hypothetical mode bypasses non-specialist reduction");
+    check(vp_city_food_consumption(context,city,-1000).total_times100==100,"Total consumption floor follows even a negative protected component");
+    city.population=1;city_food.specialists.clear();city_food.stored_times100=0;
+    q=vp_city_food_consumption(context,city,-500);check(q.total_times100==-500&&q.protected_size_one,"Size-one empty storage applies final income cap without a new zero clamp");
+    city_food.stored_times100=1;check(vp_city_food_consumption(context,city,0).total_times100==100,"Any stored food disables the size-one cap");
+    city_food.specialists={{1,7}};check(vp_city_food_rates(context,city).non_specialists==0&&vp_city_food_rates(context,city).specialists==7,"Oversubscribed specialists remain visible and do not create negative ordinary workers");
+    for(const auto &[food,expected]:std::vector<std::pair<std::int64_t,std::int64_t>>{{-1,0},{0,0},{1,1},{199,199},{200,200},{201,200},{202,201},{399,299},{400,300},{401,300},{404,301},{INT64_MAX,2305843009213694151LL}})
+        check(vp_food_to_production_times100(food)==expected,"Food conversion preserves exact thresholds and truncation, with wide products");
+    check(!vp_city_food_production(context,city),"Empty production queue consumes no food for production");
+    *city.production_orders={{1,0,-1,false,false},{0,0,-1,false,false}};check(!vp_city_food_production(context,city),"Only first queue item controls food production");
+    city.production_orders->front().type=0;check(vp_city_food_production(context,city),"Unit Food rule enables conversion");
+    city.production_orders->front().item=2;check(!vp_city_food_production(context,city),"Ordinary military unit does not consume food without the player effect");
+    player_food.military_production_count=1;check(vp_city_food_production(context,city),"Live player military food effect enables military production");
+    city.production_orders->front().item=999;check(!vp_city_food_production(context,city),"Missing unit Info follows original false path");
+    constexpr std::int64_t wide=4294967300LL;rules.specialist_slots=wide+2;city_food.specialists={{wide,wide}};city.population=wide+3;eras[9]=wide;
+    rules.specialist_extra_by_era[wide-1]=7;player_food.half_specialist_count=player_food.half_specialist_capital_count=0;city_food.no_starvation_non_specialist=0;
+    q=vp_city_food_consumption(context,city,0);check(q.rates.era_extra==7&&q.rates.specialists==wide&&q.total_times100==wide*900+600,"Wide specialist IDs, counts, era gaps and totals do not inherit int32 capacities");
+    city_food.specialists={{wide,INT64_MAX}};city.population=INT64_MAX;rejects([&]{vp_city_food_consumption(context,city,0);});
+    auto detached=city;rejects([&]{vp_city_food_rates(context,detached);});food_profile.cities.erase({5,42});rejects([&]{vp_city_food_rates(context,city);});
+
+    SavedSessionSnapshot snap;snap.all_players.emplace();snap.all_players->layout=layout;SavedPlayerObservation sp;sp.saved_player_id=wide;
+    sp.core.layout=sp.traits.layout=sp.cities.layout=layout;
+    const auto core=[&](const char *name,std::int64_t n){PlayerCoreField f{name,PlayerCoreEncoding::i32};f.values={n};sp.core.fields.push_back(f);};
+    core("m_iSpecialistFoodChange",wide);core("m_iHalfSpecialistFoodCount",1);core("m_iHalfSpecialistFoodCapitalCount",2);core("m_iMilitaryFoodProductionCount",3);
+    PlayerTraitsField tf{"m_iNonSpecialistFoodChange",PlayerTraitsEncoding::i32};tf.values={-wide};sp.traits.fields={tf};
+    sp.cities.cities.emplace_back();auto &sc=sp.cities.cities.back();sc.core.layout=sc.production.layout=sc.management.layout=layout;sc.core.start_offset=wide+1;sc.core.end_offset=wide+2;
+    const auto field=[&](const char *name,std::int64_t n){CityCoreField f{name,CityCoreEncoding::i32};f.values={n};sc.core.fields.push_back(f);};
+    field("m_iID",wide+3);field("m_eOwner",wide);field("m_iFood",wide+4);field("m_iAdditionalFood",-2);field("m_iNoStarvationNonSpecialist",3);field("m_iMinimumFood",4);
+    CityManagementBlock citizens{"citizens"};citizens.arrays={{"m_aiSpecialistCounts",1,{5,wide,7,888,999}}};sc.management.blocks={citizens};
+    CityProductionRecord queue{"queue"},order{"order"};order.fields={{"eOrderType",0},{"iData1",wide+5},{"iData2",wide+6},{"bSave",1},{"bRush",0}};queue.children={order};sc.production.blocks={queue};
+    snap.all_players->players={sp};CityYieldContext restored;restored.profile=vp;auto &rc=restored.players[wide].cities[wide+3];rc.owner=wide;rc.id=wide+3;rc.source_core={{wide+1,wide+2}};
+    rules.specialist_slots=3;restore_vp_city_food(snap,rules,restored);
+    const auto *restored_profile=find_vp_city_food_profile(restored);
+    check(restored_profile->cities.at({wide,wide+3}).stored_times100==wide+4&&restored_profile->cities.at({wide,wide+3}).specialists==YieldValues{{0,5},{1,wide},{2,7}}&&restored_profile->players.at(wide).non_specialist_change_times100==-wide,"Import retains wide food state and excludes promotion-domain specialist padding");
+    check(*rc.production_orders==std::vector<CityYieldState::ProductionOrder>{{0,wide+5,wide+6,true,false}},"Import binds complete authored queue records to the shared city");
+    auto broken=snap;broken.all_players->players[0].cities.cities[0].management.blocks[0].arrays[0].values.pop_back();rejects([&]{restore_vp_city_food(broken,rules,restored);});
+    broken=snap;broken.all_players->players[0].cities.cities[0].core.start_offset++;rejects([&]{restore_vp_city_food(broken,rules,restored);});
+    broken=snap;broken.all_players->players[0].core.fields.push_back(broken.all_players->players[0].core.fields.front());rejects([&]{restore_vp_city_food(broken,rules,restored);});
+    auto copied=restored;ensure_vp_city_food_profile(copied).players.at(wide).specialist_change=17;
+    check(find_vp_city_food_profile(restored)->players.at(wide).specialist_change==wide,"VP city food profile copies independently");
+    CityYieldContext vanilla;check(!find_vp_city_food_profile(vanilla),"Vanilla runtime has no VP city food state");rejects([&]{ensure_vp_city_food_profile(vanilla);});
+}

@@ -1,0 +1,16 @@
+{
+  "schema": "civis-native-label-color-pack-source-v1",
+  "exeSha256": "7c9f93d512c49a7ab2bc70f51c6caa10a82ddd697ac11d8a24ff1bb7ce7c3686",
+  "sliceStart": "0x5a75ef",
+  "sliceEndExclusive": "0x5a76c0",
+  "sliceBytes": 209,
+  "sliceSha256": "8a3f4aa5d42a1f2ef31e614b257b9b5f53090f9b7a00deee695ba5c955ed6c4a",
+  "sliceRawOffset": 1731055,
+  "scaleConstantVA": "0x9fbf04",
+  "scaleConstantRawOffset": 6270724,
+  "scaleConstantBits": 1132396544,
+  "nativeLabelReady": false,
+  "wrapperScope": "unchanged three-group numeric slice, explicit masked incoming x87 CW",
+  "independentInstructions": 55,
+  "gpuExecuted": false
+}

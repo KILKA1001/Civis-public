@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "decoder": "innoextract 1.10-dev + 6e9e34e",
+  "source": "https://github.com/dscharrer/innoextract/tree/6e9e34e",
+  "packages": [
+    {
+      "license": "innoextract",
+      "name": "innoextract-1.9.r82.6e9e34e-5",
+      "sha256": "8f24a56eec40c92f6867c62aead4ca143b307034af873af7ef95f149170595f0"
+    },
+    {
+      "license": "boost-libs",
+      "name": "boost-libs-1.92.0-3",
+      "sha256": "adc8aa457163d335893e16aa1ccebb1c4a091a9c68283ae4dee967dacab9d828"
+    },
+    {
+      "license": "xz",
+      "name": "xz-5.8.4-1",
+      "sha256": "a9d771f816d8c0c5bde152ffb27a687ede91079b8e77e5b8297efa3b5a835934"
+    },
+    {
+      "license": "gcc-libs",
+      "name": "gcc-libs-16.2.0-3",
+      "sha256": "5763fabf86fa13a4449ee765006d3446384ed66af7bf827459710eb777e0b11c"
+    },
+    {
+      "license": "bzip2",
+      "name": "bzip2-1.0.8-4",
+      "sha256": "f03a2174034ddd2d96cecd34f617c5f8e2ef86c812b8d2bb3b8875257f2c8bfa"
+    },
+    {
+      "license": "zlib",
+      "name": "zlib-1.3.2-2",
+      "sha256": "841401182976d2f9e17e5c0ebaac51f2a8014140ea53d67625e91c8fb3c85ea0"
+    },
+    {
+      "license": "zstd",
+      "name": "zstd-1.5.7-2",
+      "sha256": "dbdb8427280046a2b41697780aa4c52983b708082b0da4755951dc3bea96ca89"
+    },
+    {
+      "license": "libwinpthread",
+      "name": "libwinpthread-14.0.0.r375.g9c1abbbf5-1",
+      "sha256": "61d340fe8eebc77ee821badca246827fe90545e99685e503bdea16a8d25df512"
+    }
+  ],
+  "binaries": [
+    {
+      "name": "innoextract.exe",
+      "sha256": "23c713f5c38390d59f50c96400218f98e06255f6ebead45d8e54c51055faff0b"
+    },
+    {
+      "name": "libgcc_s_seh-1.dll",
+      "sha256": "80940372431cc76224dfda06e2d33f01e49af3b4e7c499c535be856ebcadd273"
+    },
+    {
+      "name": "libstdc++-6.dll",
+      "sha256": "69200d6d96b903dac4c873031813485a0455828be8101479efc56008862420cc"
+    },
+    {
+      "name": "libboost_filesystem-mt.dll",
+      "sha256": "831dd42b66ed1946990cc2d636fca23261d296bb46c9d283c8114ffadf2af33a"
+    },
+    {
+      "name": "libboost_iostreams-mt.dll",
+      "sha256": "30fe4c8f2f3aa4c27a3a1d025d71184c3ddc13dbf88b33f89dec1fc06a168695"
+    },
+    {
+      "name": "libboost_program_options-mt.dll",
+      "sha256": "5480d3d7cf16a0f5275b7c3c20411b7a2290bd5dd640d20bc8e46931e9f05fa9"
+    },
+    {
+      "name": "liblzma-5.dll",
+      "sha256": "d97a260b8bb4f6affc34ec47249429240068b94bb6f7dc30c4d64daaafb3ac69"
+    },
+    {
+      "name": "libwinpthread-1.dll",
+      "sha256": "bbe82da090a3a135eb4209466142e28e97fc9d61d8d4070a8585cbc8a15ab970"
+    },
+    {
+      "name": "libbz2-1.dll",
+      "sha256": "1790bf6473c9d48db14c1f0ee8124142327556d281299ea2a72ee361118ee01a"
+    },
+    {
+      "name": "zlib1.dll",
+      "sha256": "11cd91171765cd65f1c3362e3df67e5f5a618a6b88c8cdec899b802eaf1c7b0d"
+    },
+    {
+      "name": "libzstd.dll",
+      "sha256": "48368ab0ca622d0ec12f41ce85d91f22866bf5da92c77a69a06483564c93816c"
+    }
+  ]
+}

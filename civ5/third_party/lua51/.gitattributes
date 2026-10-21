@@ -1,0 +1,6 @@
+*.c -text whitespace=-trailing-space
+*.h -text whitespace=-trailing-space
+COPYRIGHT -text
+*.patch -text whitespace=-trailing-space
+# Keep the two upstream mixed-indent lines byte-identical to the archive.
+lundump.c whitespace=-trailing-space,-space-before-tab

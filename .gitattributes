@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.py text eol=lf
+*.zip binary
+*.7z binary
+*.png binary
+civ5/third_party/** -text -eol
